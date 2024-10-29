@@ -63,7 +63,86 @@ BufMgr::~BufMgr() {
 }
 
 
-scp -r ayuan@best-linux.cs.wisc.edu:/home/ayuan/private/cs354/PROJECT DIR .
+const Status BufMgr::allocBuf(int & frame) 
+{
+	unsigned int start = clockHand;
+	BufDesc curFrame;
+	do {
+		curFrame = bufTable[clockHand];
+		if (!curFrame.valid) {
+			if (curFrame.refbit) {
+				curFrame.refbit = false;
+			}
+			else {
+				if (!curFrame.pinCnt) {
+					if (curFrame.dirty) {
+						if (flushFile(curFrame.file) != OK) {
+							return UNIXERR;
+						}
+					}
+					frame = clockHand;
+					return OK;
+				}
+			}
+		}
+		advanceClock();
+	} while(start != clockHand);
+	return BUFFEREXCEEDED;
+}
+
+	
+const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
+{
+
+
+
+
+	return OK;
+}
+
+
+const Status BufMgr::unPinPage(File* file, const int PageNo, 
+			       const bool dirty) 
+{
+	int frameNo;
+	if (hashTable->lookup(file, PageNo, frameNo) != OK) {
+		return HASHNOTFOUND;
+	}
+	BufDesc curFrame = bufTable[frameNo];
+	if (!curFrame.pinCnt) {
+		return PAGENOTPINNED;
+	}
+	if (dirty) {
+		curFrame.dirty = true;
+	}
+	curFrame.pinCnt--;
+	return OK;
+}
+
+const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
+{
+	Status status = file->allocatePage(pageNo);
+	if (status != OK) {
+		return status;
+	}
+	
+	int frameNo;
+	status = allocBuf(frameNo);
+	if (status != OK) {
+		return status;
+	}
+
+	if (hashTable->insert(file, pageNo, frameNo) != OK) {
+		return HASHTBLERROR;	
+	}
+	
+	BufDesc curFrame = bufTable[frameNo];
+	curFrame.Set(file, pageNo);
+
+	page = new Page();
+	page->init(pageNo);
+	return OK;
+}
 
 const Status BufMgr::disposePage(File* file, const int pageNo) 
 {
