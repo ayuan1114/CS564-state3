@@ -69,9 +69,10 @@ const Status BufMgr::allocBuf(int & frame)
 	BufDesc* curFrame;
 	do {
 		curFrame = &bufTable[clockHand];
-		if (!curFrame->valid) {
+		if (curFrame->valid) {
 			if (curFrame->refbit) {
 				curFrame->refbit = false;
+				start = clockHand;
 			}
 			else {
 				if (!curFrame->pinCnt) {
@@ -80,10 +81,15 @@ const Status BufMgr::allocBuf(int & frame)
 							return UNIXERR;
 						}
 					}
+					hashTable->remove(curFrame->file, curFrame->pageNo);
 					frame = clockHand;
 					return OK;
 				}
 			}
+		}
+		else {
+			frame = clockHand;
+			return OK;
 		}
 		advanceClock();
 	} while(start != clockHand);
@@ -102,9 +108,12 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 		page = bufPool + frameNo;
 	}
 	else {
-		allocBuf(frameNo);
+		Status status = allocBuf(frameNo);
+		if (status != OK) {
+			return status;
+		}
 		printSelf();
-		Status status = file->readPage(PageNo, page);
+		status = file->readPage(PageNo, page);
 		cout << frameNo << PageNo << endl;
 		if (status != OK) {
 			return status;
@@ -117,7 +126,6 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 		curFrame->Set(file, PageNo);
 		*(bufPool + frameNo) = *page;
 	}
-
 	return OK;
 }
 
@@ -160,8 +168,7 @@ const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page)
 	BufDesc &curFrame = bufTable[frameNo];
 	curFrame.Set(file, pageNo);
 
-	page = new Page();
-	page->init(pageNo);
+	page = bufPool + frameNo;
 	return OK;
 }
 
