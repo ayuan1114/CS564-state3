@@ -95,7 +95,7 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
 	int frameNo;
 	if (hashTable->lookup(file, PageNo, frameNo) != OK) {
-		BufDesc curframe = bufTable[frameNo];
+		BufDesc &curframe = bufTable[frameNo];
 		curframe.pinCnt++;
 		curframe.refbit = true;
 		page = bufPool + frameNo;
@@ -103,10 +103,11 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 	else {
 		allocBuf(frameNo);
 		file->readPage(PageNo, page);
+		
 		if (hashTable->insert(file, PageNo, frameNo) != OK) {
 			return HASHTBLERROR;
 		}
-		BufDesc curframe = bufTable[frameNo];
+		BufDesc &curframe = bufTable[frameNo];
 		curframe.Set(file, PageNo);
 		*(bufPool + frameNo) = *page;
 	}
@@ -150,7 +151,7 @@ const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page)
 		return HASHTBLERROR;	
 	}
 	
-	BufDesc curFrame = bufTable[frameNo];
+	BufDesc &curFrame = bufTable[frameNo];
 	curFrame.Set(file, pageNo);
 
 	page = new Page();
