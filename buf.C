@@ -66,17 +66,17 @@ BufMgr::~BufMgr() {
 const Status BufMgr::allocBuf(int & frame) 
 {
 	unsigned int start = clockHand;
-	BufDesc curFrame;
+	BufDesc* curFrame;
 	do {
-		curFrame = bufTable[clockHand];
-		if (!curFrame.valid) {
-			if (curFrame.refbit) {
-				curFrame.refbit = false;
+		curFrame = &bufTable[clockHand];
+		if (!curFrame->valid) {
+			if (curFrame->refbit) {
+				curFrame->refbit = false;
 			}
 			else {
-				if (!curFrame.pinCnt) {
-					if (curFrame.dirty) {
-						if (flushFile(curFrame.file) != OK) {
+				if (!curFrame->pinCnt) {
+					if (curFrame->dirty) {
+						if (flushFile(curFrame->file) != OK) {
 							return UNIXERR;
 						}
 					}
@@ -94,21 +94,27 @@ const Status BufMgr::allocBuf(int & frame)
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
 	int frameNo;
-	if (hashTable->lookup(file, PageNo, frameNo) != OK) {
-		BufDesc &curframe = bufTable[frameNo];
-		curframe.pinCnt++;
-		curframe.refbit = true;
+	BufDesc* curFrame;
+	if (hashTable->lookup(file, PageNo, frameNo) == OK) {
+		curFrame = &bufTable[frameNo];
+		curFrame->pinCnt++;
+		curFrame->refbit = true;
 		page = bufPool + frameNo;
 	}
 	else {
 		allocBuf(frameNo);
-		file->readPage(PageNo, page);
+		printSelf();
+		Status status = file->readPage(PageNo, page);
+		cout << frameNo << PageNo << endl;
+		if (status != OK) {
+			return status;
+		}
 		
 		if (hashTable->insert(file, PageNo, frameNo) != OK) {
 			return HASHTBLERROR;
 		}
-		BufDesc &curframe = bufTable[frameNo];
-		curframe.Set(file, PageNo);
+		curFrame = &bufTable[frameNo];
+		curFrame->Set(file, PageNo);
 		*(bufPool + frameNo) = *page;
 	}
 
@@ -123,7 +129,7 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
 	if (hashTable->lookup(file, PageNo, frameNo) != OK) {
 		return HASHNOTFOUND;
 	}
-	BufDesc curFrame = bufTable[frameNo];
+	BufDesc &curFrame = bufTable[frameNo];
 	if (!curFrame.pinCnt) {
 		return PAGENOTPINNED;
 	}
