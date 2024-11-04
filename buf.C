@@ -93,9 +93,23 @@ const Status BufMgr::allocBuf(int & frame)
 	
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
-
-
-
+	int frameNo;
+	if (hashTable->lookup(file, PageNo, frameNo) != OK) {
+		BufDesc curframe = bufTable[frameNo];
+		curframe.pinCnt++;
+		curframe.refbit = true;
+		page = bufPool + frameNo;
+	}
+	else {
+		allocBuf(frameNo);
+		file->readPage(PageNo, page);
+		if (hashTable->insert(file, PageNo, frameNo) != OK) {
+			return HASHTBLERROR;
+		}
+		BufDesc curframe = bufTable[frameNo];
+		curframe.Set(file, PageNo);
+		*(bufPool + frameNo) = *page;
+	}
 
 	return OK;
 }
