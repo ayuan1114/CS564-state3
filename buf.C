@@ -78,12 +78,12 @@ const Status BufMgr::allocBuf(int & frame)
 			else {
 				if (!curFrame->pinCnt) {
 					if (curFrame->dirty) {
-						status = flushFile(curFrame->file);
+						status = curFrame->file->writePage(curFrame->pageNo, bufPool + clockHand);//flushFile(curFrame->file);
 						if (status != OK) {
 							return UNIXERR;
 						}
 					}
-					//status = hashTable->remove(curFrame->file, curFrame->pageNo);
+					status = hashTable->remove(curFrame->file, curFrame->pageNo);
 					frame = clockHand;
 					return OK;
 				}
@@ -94,7 +94,7 @@ const Status BufMgr::allocBuf(int & frame)
 			return OK;
 		}
 		start++;
-	} while(start < numBufs * 2 + 1);
+	} while(start < numBufs * 2);
 	return BUFFEREXCEEDED;
 }
 
