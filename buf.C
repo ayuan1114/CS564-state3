@@ -67,6 +67,7 @@ const Status BufMgr::allocBuf(int & frame)
 {
 	int start = 0;
 	BufDesc* curFrame;
+	Status status;
 	do {
 		advanceClock();
 		curFrame = &bufTable[clockHand];
@@ -77,11 +78,12 @@ const Status BufMgr::allocBuf(int & frame)
 			else {
 				if (!curFrame->pinCnt) {
 					if (curFrame->dirty) {
-						if (flushFile(curFrame->file) != OK) {
+						status = flushFile(curFrame->file);
+						if (status != OK) {
 							return UNIXERR;
 						}
 					}
-					hashTable->remove(curFrame->file, curFrame->pageNo);
+					//status = hashTable->remove(curFrame->file, curFrame->pageNo);
 					frame = clockHand;
 					return OK;
 				}
@@ -195,8 +197,11 @@ const Status BufMgr::flushFile(const File* file)
     BufDesc* tmpbuf = &(bufTable[i]);
     if (tmpbuf->valid == true && tmpbuf->file == file) {
 
-      if (tmpbuf->pinCnt > 0)
-	  return PAGEPINNED;
+      if (tmpbuf->pinCnt > 0) {
+      	cout << tmpbuf->pinCnt << endl;
+      	return PAGEPINNED;
+      }
+	  
 
       if (tmpbuf->dirty == true) {
 #ifdef DEBUGBUF
