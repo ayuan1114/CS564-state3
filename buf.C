@@ -65,14 +65,14 @@ BufMgr::~BufMgr() {
 
 const Status BufMgr::allocBuf(int & frame) 
 {
-	unsigned int start = clockHand;
+	int start = 0;
 	BufDesc* curFrame;
 	do {
+		advanceClock();
 		curFrame = &bufTable[clockHand];
 		if (curFrame->valid) {
 			if (curFrame->refbit) {
 				curFrame->refbit = false;
-				start = clockHand;
 			}
 			else {
 				if (!curFrame->pinCnt) {
@@ -91,8 +91,8 @@ const Status BufMgr::allocBuf(int & frame)
 			frame = clockHand;
 			return OK;
 		}
-		advanceClock();
-	} while(start != clockHand);
+		start++;
+	} while(start < numBufs * 2 + 1);
 	return BUFFEREXCEEDED;
 }
 
@@ -112,9 +112,8 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 		if (status != OK) {
 			return status;
 		}
-		printSelf();
+		page = bufPool + frameNo;
 		status = file->readPage(PageNo, page);
-		cout << frameNo << PageNo << endl;
 		if (status != OK) {
 			return status;
 		}
@@ -124,7 +123,6 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 		}
 		curFrame = &bufTable[frameNo];
 		curFrame->Set(file, PageNo);
-		*(bufPool + frameNo) = *page;
 	}
 	return OK;
 }
